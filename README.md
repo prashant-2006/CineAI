@@ -1,4 +1,4 @@
-# CINE.AI // Neural Recommendation Engine
+# CINE.AI | Neural Recommendation Engine
 
 A classified cinematic intelligence database. **CINE.AI** is a premium, dark-themed movie tracking and recommendation system inspired by the stark, gritty aesthetic of the 2022 *The Batman* film. 
 
