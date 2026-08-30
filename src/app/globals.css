@@ -1,0 +1,29 @@
+@import "tailwindcss";
+
+@theme {
+  /* 1. Define the animation (this automatically creates the `animate-particles` class) */
+  --animate-particles: atmospheric-fall 10s linear infinite;
+
+  /* 2. Define the keyframes directly inside the theme block */
+  @keyframes atmospheric-fall {
+    0% {
+      transform: translateY(-5vh) translateX(0);
+      opacity: 0;
+    }
+    20% {
+      opacity: var(--max-opacity, 0.5);
+    }
+    80% {
+      opacity: var(--max-opacity, 0.5);
+    }
+    100% {
+      transform: translateY(105vh) translateX(5vw);
+      opacity: 0;
+    }
+  }
+}
+
+/* 3. Use the new @utility directive instead of @layer utilities */
+@utility text-shadow-glow {
+  text-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+}
