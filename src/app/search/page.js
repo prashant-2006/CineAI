@@ -38,8 +38,7 @@ export default function SearchPage() {
   const handleAction = (movie, actionType) => {
     const actions = {
       watchlist: "Target List",
-      favourite: "Favorites",
-      watching: "Active Intel (Watching)"
+      favourite: "Favorites"
     };
     console.log(`Added to ${actionType}:`, movie.Title);
     alert(`${movie.Title} added to ${actions[actionType]}.`);
@@ -135,13 +134,6 @@ export default function SearchPage() {
                     className="w-full flex items-center justify-center gap-2 bg-transparent border border-zinc-600 text-zinc-400 px-2.5 py-2 font-oswald uppercase tracking-widest text-[10px] md:text-[11px] font-bold hover:border-red-800 hover:bg-red-800 hover:text-white transition-all"
                   >
                     <Heart size={16} strokeWidth={2} /> Favourite
-                  </button>
-
-                  <button 
-                    onClick={() => handleAction(movie, 'watching')}
-                    className="w-full flex items-center justify-center gap-2 bg-transparent border border-zinc-700 text-zinc-500 px-2.5 py-2 font-oswald uppercase tracking-widest text-[10px] md:text-[11px] font-bold hover:green-zinc-800 hover:bg-green-800 hover:text-white transition-all"
-                  >
-                    <Eye size={16} strokeWidth={2} /> Watching
                   </button>
                 </div>
               </div>
