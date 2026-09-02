@@ -45,10 +45,10 @@ export default function Navbar() {
           </Link>
           
           <div className="hidden md:flex gap-6 text-sm font-medium text-zinc-400 tracking-widest">
-            <Link href="#" className="hover:text-white transition-colors uppercase">Watchlist</Link>
-            <Link href="#" className="hover:text-white transition-colors uppercase">Favorites</Link>
-            <Link href="#" className="hover:text-white transition-colors uppercase">Activity</Link>
-            <Link href="#" className="hover:text-white transition-colors uppercase text-zinc-300">Recommendations</Link>
+            <Link href="/targetlist" className="hover:text-white transition-colors uppercase">Target List</Link>
+            <Link href="/favorites" className="hover:text-white transition-colors uppercase">Favorites</Link>
+            <Link href="/activity" className="hover:text-white transition-colors uppercase">Activity</Link>
+            <Link href="/recommendations" className="hover:text-white transition-colors uppercase">Recommendations</Link>
           </div>
         </div>
         
@@ -125,16 +125,16 @@ export default function Navbar() {
           isMobileMenuOpen ? "opacity-100 pointer-events-auto translate-y-0" : "opacity-0 pointer-events-none translate-y-8"
         }`}
       >
-        <Link href="#" onClick={() => setIsMobileMenuOpen(false)} className="text-2xl hover:text-white transition-colors uppercase font-oswald tracking-widest text-zinc-400">
-          Watchlist
+        <Link href="/targetlist" onClick={() => setIsMobileMenuOpen(false)} className="text-2xl hover:text-white transition-colors uppercase font-oswald tracking-widest text-zinc-400">
+          Target List
         </Link>
-        <Link href="#" onClick={() => setIsMobileMenuOpen(false)} className="text-2xl hover:text-white transition-colors uppercase font-oswald tracking-widest text-zinc-400">
+        <Link href="/favorites" onClick={() => setIsMobileMenuOpen(false)} className="text-2xl hover:text-white transition-colors uppercase font-oswald tracking-widest text-zinc-400">
           Favorites
         </Link>
-        <Link href="#" onClick={() => setIsMobileMenuOpen(false)} className="text-2xl hover:text-white transition-colors uppercase font-oswald tracking-widest text-zinc-400">
+        <Link href="/activity" onClick={() => setIsMobileMenuOpen(false)} className="text-2xl hover:text-white transition-colors uppercase font-oswald tracking-widest text-zinc-400">
           Activity
         </Link>
-        <Link href="#" onClick={() => setIsMobileMenuOpen(false)} className="text-2xl hover:text-white transition-colors uppercase font-oswald tracking-widest text-zinc-200">
+        <Link href="/recommendations" onClick={() => setIsMobileMenuOpen(false)} className="text-2xl hover:text-white transition-colors uppercase font-oswald tracking-widest text-zinc-400">
           Recommendations
         </Link>
 

@@ -2,13 +2,18 @@
 import { useState } from "react";
 import Navbar from "../components/Navbar";
 import CinematicParticles from "../components/CinematicParticles";
-import { Search, Loader2, BookmarkPlus, Heart, Eye, Clapperboard, Star } from "lucide-react";
+import { Search, Loader2, BookmarkPlus, Heart, Clapperboard, Star } from "lucide-react";
+import { useSession } from "next-auth/react";
 
 export default function SearchPage() {
+  const { data: session } = useSession();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  
+  // New state to track individual button actions
+  const [actionStatus, setActionStatus] = useState({});
 
   const handleSearch = async (e) => {
     e.preventDefault();
@@ -35,13 +40,60 @@ export default function SearchPage() {
     }
   };
 
-  const handleAction = (movie, actionType) => {
-    const actions = {
-      watchlist: "Target List",
-      favourite: "Favorites"
+  const handleAction = async (movie, actionType) => {
+    const statusKey = `${movie.imdbID}-${actionType}`;
+
+    // Helper to reset button state after delay
+    const resetStatus = () => {
+      setTimeout(() => {
+        setActionStatus((prev) => {
+          const newState = { ...prev };
+          delete newState[statusKey];
+          return newState;
+        });
+      }, 2500);
     };
-    console.log(`Added to ${actionType}:`, movie.Title);
-    alert(`${movie.Title} added to ${actions[actionType]}.`);
+
+    if (!session) {
+      setActionStatus((prev) => ({ ...prev, [statusKey]: 'unauthorized' }));
+      resetStatus();
+      return;
+    }
+
+    setActionStatus((prev) => ({ ...prev, [statusKey]: 'loading' }));
+
+    try {
+      const res = await fetch("/api/collection", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imdbID: movie.imdbID, type: actionType }),
+      });
+
+      if (res.ok) {
+        setActionStatus((prev) => ({ ...prev, [statusKey]: 'success' }));
+      } else {
+        setActionStatus((prev) => ({ ...prev, [statusKey]: 'error' }));
+      }
+    } catch (err) {
+      console.error("Save error:", err);
+      setActionStatus((prev) => ({ ...prev, [statusKey]: 'error' }));
+    }
+
+    resetStatus();
+  };
+
+  // Helper function to render button content dynamically
+  const renderButtonContent = (movie, type, defaultIcon, defaultText) => {
+    const status = actionStatus[`${movie.imdbID}-${type}`];
+    
+    if (status === 'loading') {
+      return <><Loader2 size={16} className="animate-spin" /> PROCCESSING</>;
+    }
+    if (status === 'success') return "SECURED";
+    if (status === 'error') return "FAILED";
+    if (status === 'unauthorized') return "LOGIN REQ";
+    
+    return <>{defaultIcon} {defaultText}</>;
   };
 
   return (
@@ -51,7 +103,6 @@ export default function SearchPage() {
       
       <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-zinc-900/20 via-black to-black pointer-events-none z-0" />
 
-      {/* INCREASED SIDE PADDING (px-6 md:px-12) to slightly pinch the container inwards */}
       <div className="flex-1 w-full max-w-7xl mx-auto px-6 md:px-12 pt-32 pb-20 relative z-10">
         
         <div className="max-w-xl mx-auto text-center mb-16">
@@ -86,7 +137,6 @@ export default function SearchPage() {
           </div>
         )}
 
-        {/* INCREASED HORIZONTAL GAP (gap-x) to widen space between movies & naturally shrink card width */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-y-6 gap-x-5 md:gap-y-8 md:gap-x-8 xl:gap-x-10">
           {!loading && results.length > 0 && results.map((movie) => (
             <div 
@@ -95,7 +145,6 @@ export default function SearchPage() {
             >
               <div className="aspect-[2/3] w-full bg-zinc-900 relative overflow-hidden">
                 
-                {/* Slightly reduced star padding */}
                 {movie.imdbRating && movie.imdbRating !== "N/A" && (
                   <div className="absolute top-2 right-2 bg-black/80 backdrop-blur-md px-1.5 py-0.5 border border-zinc-700/50 flex items-center gap-1 z-10 group-hover:opacity-0 transition-opacity duration-300">
                     <Star size={10} className="text-yellow-500" fill="currentColor" />
@@ -120,32 +169,41 @@ export default function SearchPage() {
                   </div>
                 )}
                 
-                {/* Reduced internal padding of hover menu (p-3) and buttons (py-2) */}
+                {/* Tactical Hover Menu */}
                 <div className="absolute inset-0 bg-black/90 backdrop-blur-md opacity-0 group-hover:opacity-100 transition-all duration-300 flex flex-col items-center justify-center gap-2 p-3 z-20">
+                  
                   <button 
                     onClick={() => handleAction(movie, 'watchlist')}
-                    className="w-full flex items-center justify-center gap-2 bg-transparent border border-zinc-500 text-zinc-300 px-2.5 py-2 font-oswald uppercase tracking-widest text-[10px] md:text-[11px] font-bold hover:bg-white hover:text-black hover:border-white transition-all"
+                    disabled={!!actionStatus[`${movie.imdbID}-watchlist`]}
+                    className={`w-full flex items-center justify-center gap-2 px-2.5 py-2 font-oswald uppercase tracking-widest text-[10px] md:text-[11px] font-bold transition-all duration-300 ${
+                      actionStatus[`${movie.imdbID}-watchlist`] === 'success' ? 'bg-white text-black border-white border' :
+                      actionStatus[`${movie.imdbID}-watchlist`] === 'error' || actionStatus[`${movie.imdbID}-watchlist`] === 'unauthorized' ? 'bg-red-900/80 text-white border-red-500 border' :
+                      'bg-transparent border border-zinc-500 text-zinc-300 hover:bg-white hover:text-black hover:border-white'
+                    }`}
                   >
-                    <BookmarkPlus size={16} strokeWidth={2} /> Target
+                    {renderButtonContent(movie, 'watchlist', <BookmarkPlus size={16} strokeWidth={2} />, 'Target')}
                   </button>
 
                   <button 
                     onClick={() => handleAction(movie, 'favourite')}
-                    className="w-full flex items-center justify-center gap-2 bg-transparent border border-zinc-600 text-zinc-400 px-2.5 py-2 font-oswald uppercase tracking-widest text-[10px] md:text-[11px] font-bold hover:border-red-800 hover:bg-red-800 hover:text-white transition-all"
+                    disabled={!!actionStatus[`${movie.imdbID}-favourite`]}
+                    className={`w-full flex items-center justify-center gap-2 px-2.5 py-2 font-oswald uppercase tracking-widest text-[10px] md:text-[11px] font-bold transition-all duration-300 ${
+                      actionStatus[`${movie.imdbID}-favourite`] === 'success' ? 'bg-white text-black border-white border' :
+                      actionStatus[`${movie.imdbID}-favourite`] === 'error' || actionStatus[`${movie.imdbID}-favourite`] === 'unauthorized' ? 'bg-red-900/80 text-white border-red-500 border' :
+                      'bg-transparent border border-zinc-600 text-zinc-400 hover:border-red-800 hover:bg-red-800 hover:text-white'
+                    }`}
                   >
-                    <Heart size={16} strokeWidth={2} /> Favourite
+                    {renderButtonContent(movie, 'favourite', <Heart size={16} strokeWidth={2} />, 'Favourite')}
                   </button>
+                  
                 </div>
               </div>
 
-              {/* Reduced footer padding (p-2.5 md:p-3) */}
               <div className="p-2.5 md:p-3 flex-1 flex flex-col justify-between z-10 bg-zinc-950 border-t border-zinc-900">
                 <div className="flex flex-col gap-1 w-full overflow-hidden">
-                  
                   <h3 className="font-oswald text-sm md:text-base text-white uppercase tracking-wider leading-tight mb-0.5 truncate" title={movie.Title}>
                     {movie.Title}
                   </h3>
-                  
                   <div className="flex items-center text-[9px] md:text-[10px] text-zinc-500 font-semibold tracking-widest truncate">
                     <span>{movie.Released !== "N/A" ? movie.Released : movie.Year}</span>
                     {movie.Runtime && movie.Runtime !== "N/A" && (
@@ -155,13 +213,11 @@ export default function SearchPage() {
                       </>
                     )}
                   </div>
-
                   {movie.Genre && movie.Genre !== "N/A" && (
                     <p className="text-[8px] md:text-[9px] text-zinc-600 uppercase tracking-widest truncate mt-0.5" title={movie.Genre}>
                       {movie.Genre}
                     </p>
                   )}
-                  
                 </div>
               </div>
             </div>
