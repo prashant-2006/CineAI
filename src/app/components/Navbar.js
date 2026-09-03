@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
-import { Search, Menu, User, X, LogOut } from "lucide-react";
+import { Search, Menu, User, X, LogOut, Settings } from "lucide-react";
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
 
@@ -8,13 +8,9 @@ export default function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   
-  // Fetch authentication state from NextAuth
   const { data: session, status } = useSession();
-  
-  // Reference to close dropdown when clicking outside
   const profileRef = useRef(null);
 
-  // Prevent scrolling when full-page mobile menu is open
   useEffect(() => {
     if (isMobileMenuOpen) {
       document.body.style.overflow = "hidden";
@@ -23,7 +19,6 @@ export default function Navbar() {
     }
   }, [isMobileMenuOpen]);
 
-  // Close profile dropdown if clicked outside
   useEffect(() => {
     function handleClickOutside(event) {
       if (profileRef.current && !profileRef.current.contains(event.target)) {
@@ -62,10 +57,8 @@ export default function Navbar() {
 
           {/* AUTHENTICATION SECTION */}
           {status === "loading" ? (
-            // Loading skeleton
             <div className="w-8 h-8 rounded-full border border-zinc-800 animate-pulse bg-zinc-900" />
           ) : session ? (
-            // Logged In: Profile Picture & Tactical Dropdown
             <div className="relative" ref={profileRef}>
               <button 
                 onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
@@ -75,7 +68,7 @@ export default function Navbar() {
                   src={session.user?.image || "/default-avatar.png"} 
                   alt="Operative Profile" 
                   className="w-8 h-8 rounded-full border-2 border-zinc-700 object-cover"
-                  referrerPolicy="no-referrer" /* 👈 This fixes the Google image block */
+                  referrerPolicy="no-referrer"
                 />
               </button>
 
@@ -93,16 +86,25 @@ export default function Navbar() {
                   </p>
                 </div>
                 
-                <button 
-                  onClick={() => signOut()}
-                  className="w-full flex items-center justify-between text-zinc-400 hover:text-red-500 border border-zinc-800 hover:border-red-900/50 bg-zinc-950/50 hover:bg-red-950/20 px-3 py-2.5 text-xs font-oswald uppercase tracking-widest transition-colors"
-                >
-                  Disconnect <LogOut size={14} />
-                </button>
+                <div className="flex flex-col gap-2">
+                  <Link 
+                    href="/settings"
+                    onClick={() => setIsProfileDropdownOpen(false)}
+                    className="w-full flex items-center justify-between text-zinc-400 hover:text-white border border-transparent hover:border-zinc-800 hover:bg-zinc-900/50 px-3 py-2.5 text-xs font-oswald uppercase tracking-widest transition-all"
+                  >
+                    Parameters <Settings size={14} />
+                  </Link>
+
+                  <button 
+                    onClick={() => signOut()}
+                    className="w-full flex items-center justify-between text-zinc-400 hover:text-red-500 border border-zinc-800 hover:border-red-900/50 bg-zinc-950/50 hover:bg-red-950/20 px-3 py-2.5 text-xs font-oswald uppercase tracking-widest transition-colors"
+                  >
+                    Disconnect <LogOut size={14} />
+                  </button>
+                </div>
               </div>
             </div>
           ) : (
-            // Not Logged In: Default Login Button
             <Link href="/login" className="hover:text-white flex items-center gap-2 transition-colors p-1">
               <span className="hidden md:block text-xs uppercase tracking-widest font-bold">Login</span>
               <User size={20} strokeWidth={1.5} />
@@ -138,13 +140,9 @@ export default function Navbar() {
           Recommendations
         </Link>
 
-        {/* Mobile Disconnect if logged in */}
         {session && (
           <button 
-            onClick={() => {
-              signOut();
-              setIsMobileMenuOpen(false);
-            }} 
+            onClick={() => { signOut(); setIsMobileMenuOpen(false); }} 
             className="mt-8 text-lg flex items-center gap-3 hover:text-red-500 text-red-900 transition-colors uppercase font-oswald tracking-widest"
           >
             <LogOut size={20} /> Sever Connection
