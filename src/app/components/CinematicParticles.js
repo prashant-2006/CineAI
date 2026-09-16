@@ -6,7 +6,7 @@ export default function CinematicParticles() {
 
   useEffect(() => {
     // Generate 40 random particles
-    const particleCount = 40;
+    const particleCount = 100;
     const newParticles = Array.from({ length: particleCount }).map((_, i) => ({
       id: i,
       left: `${Math.random() * 100}vw`,

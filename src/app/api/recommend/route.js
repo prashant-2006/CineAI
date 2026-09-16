@@ -19,20 +19,15 @@ export async function POST(req) {
   try {
     await connectMongo();
     const omdbKey = process.env.OMDB_API_KEY;
-    
-    // --- TIME AWARENESS ---
-    const today = new Date();
-    const currentYear = today.getFullYear();
-    const currentDateString = today.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-    
-    const randomSeed = Math.floor(Math.random() * 1000000);
+    const currentYear = new Date().getFullYear();
     let prompt = "";
 
-    // --- BASIS 1: RECENT ACTIVITY ---
+    // --- BASIS 1: RECENT ACTIVITY (USES IMDB IDs FOR PINPOINT ACCURACY) ---
     if (targetBasis === "activity") {
+      // Increased history context from 7 to 10 to give the AI more data
       const activities = await UserMovie.find({ email: session.user.email, type: "activity" })
         .sort({ addedAt: -1 })
-        .limit(7);
+        .limit(10);
 
       if (activities.length === 0) {
         return NextResponse.json({ error: "NO_ACTIVITY" }, { status: 200 });
@@ -44,88 +39,116 @@ export async function POST(req) {
           return await res.json();
         })
       );
-      const historyTitles = historyData.filter(m => m.Title).map(m => m.Title);
+
+      const historyDetails = historyData
+        .filter((m) => m.Title && m.Genre)
+        .map((m) => `Title: "${m.Title}", Genre: "${m.Genre}"`);
+
+      // Asked for 15 IDs to create a buffer for filtering
+      prompt = `
+        Provide a raw JSON array of exactly 15 IMDB IDs (starting with "tt") for famous ${targetType}s that closely match the exact genres and themes of these watched titles: [${historyDetails.join(" | ")}].
+        CRITICAL: You MUST ONLY return IDs for a ${targetType}. DO NOT return movie IDs if series is requested!
+        Prioritize any direct sequels, prequels, or spin-offs to these watched titles first.
+        Output ONLY a raw JSON array of 15 string IMDB IDs. No markdown, no backticks, no other text.
+        Example format: ["tt0111161", "tt0468569", "tt0068646", "tt1375666", "tt0109830", "tt0407887", "tt0816692", "tt1234567", "tt7654321", "tt1122334", "tt5566778", "tt9988776", "tt4433221", "tt6655443", "tt3322110"]
+      `;
+    } 
+    // --- BASIS 2: UPCOMING (NO THEATRICAL WORDING FOR SERIES) ---
+    else if (targetBasis === "upcoming") {
+      const upcomingTarget = targetType === "series"
+        ? `television and streaming ${targetType} releases or new seasons`
+        : `theatrical and blockbuster ${targetType} releases`;
 
       prompt = `
-        You are an elite cinematic intelligence system. Today's date is ${currentDateString}.
-        Recommend exactly 7 strictly ${targetType}s based on this recent watch history: ${historyTitles.join(", ")}.
-        
-        CRITICAL DIRECTIVES:
-        1. STRICT FORMAT: You MUST ONLY recommend a ${targetType}. NO movies if 'series' is requested. NO series if 'movie'.
-        2. FRANCHISE PRIORITY: If any title in their history has new, highly-rated ${targetType} sequels, prequels, or direct spin-offs, include them FIRST.
-        3. MAINSTREAM & FAMOUS ONLY: For the rest, recommend globally famous, universally known, mainstream blockbuster or critically acclaimed ${targetType}s. DO NOT recommend obscure, niche, indie, or forgotten titles.
-        4. BALANCED VARIANCE: (Internal Seed: ${randomSeed}). Provide a diverse selection of POPULAR titles. Do not repeat the exact same list, but keep them very famous.
-        5. OUTPUT: Reply ONLY with a raw JSON array of exactly 7 string IMDB IDs. Example: ["tt0111161", "tt0468569", "tt0068646", "tt1375666", "tt0109830", "tt0407887", "tt0816692"]
+        Provide a raw JSON array of exactly 15 titles for the most anticipated upcoming ${upcomingTarget} slated for ${currentYear} and ${currentYear + 1}.
+        Output ONLY a raw JSON array of title strings, with no markdown, backticks, or other text.
+        Example format: ["Title 1", "Title 2", "Title 3", "Title 4", "Title 5", "Title 6", "Title 7", "Title 8", "Title 9", "Title 10", "Title 11", "Title 12", "Title 13", "Title 14", "Title 15"]
       `;
     } 
-    // --- BASIS 2: UPCOMING & THEATRICAL ---
-    else if (targetBasis === "upcoming") {
-      prompt = `
-        You are an elite cinematic intelligence system. Today's exact date is ${currentDateString}.
-        Recommend exactly 7 strictly ${targetType}s that are massive UPCOMING releases.
-        
-        CRITICAL DIRECTIVES:
-        1. STRICT FORMAT: You MUST ONLY recommend a ${targetType}. NO movies if 'series' is requested. NO series if 'movie'.
-        2. STRICT TIMEFRAME (CRITICAL): You MUST ONLY pick titles that are releasing STRICTLY AFTER ${currentDateString}. DO NOT include any ${targetType} that has already been released.
-        3. MAINSTREAM & FAMOUS ONLY: Only pick massive blockbuster titles, major global hits, or highly anticipated major-studio projects. NO obscure or indie films.
-        4. BALANCED VARIANCE: (Internal Seed: ${randomSeed}). Ensure varied genres among the most popular upcoming titles.
-        5. OUTPUT: Reply ONLY with a raw JSON array of exactly 7 string IMDB IDs. Example: ["tt0111161", "tt0468569", "tt0068646", "tt1375666", "tt0109830", "tt0407887", "tt0816692"]
-      `;
-    } 
-    // --- BASIS 3: TOP RATED LATEST ---
+    // --- BASIS 3: TOP RATED LATEST (FIXED: NEVER RETURNS EMPTY) ---
     else if (targetBasis === "latest") {
       prompt = `
-        You are an elite cinematic intelligence system. Today's exact date is ${currentDateString}.
-        Recommend exactly 7 strictly ${targetType}s that are incredibly famous, top-rated latest releases strictly from the current year (${currentYear}).
-        
-        CRITICAL DIRECTIVES:
-        1. STRICT FORMAT: You MUST ONLY recommend a ${targetType}. NO movies if 'series' is requested. NO series if 'movie'.
-        2. STRICT RECENT TIMEFRAME (CRITICAL): You MUST ONLY pick titles released in ${currentYear} (or very late ${currentYear - 1}). ABSOLUTELY NO OLDER TITLES.
-        3. MAINSTREAM & FAMOUS ONLY: Only pick globally famous, mainstream, highly recognizable hits with stellar ratings (IMDb 7.5+). NO obscure or lesser-known titles.
-        4. BALANCED VARIANCE: (Internal Seed: ${randomSeed}). Mix up the genres slightly, but keep it strictly popular and strictly new.
-        5. OUTPUT: Reply ONLY with a raw JSON array of exactly 7 string IMDB IDs. Example: ["tt0111161", "tt0468569", "tt0068646", "tt1375666", "tt0109830", "tt0407887", "tt0816692"]
+        Provide a raw JSON array of exactly 15 titles for the best, most acclaimed, and globally recognized ${targetType}s released in ${currentYear} or ${currentYear - 1}.
+        Include major breakout hits, award contenders, and top-rated titles. You MUST provide exactly 15 real titles. NEVER return an empty array.
+        Output ONLY a raw JSON array of title strings, with no markdown, backticks, or other text.
+        Example format: ["Title 1", "Title 2", "Title 3", "Title 4", "Title 5", "Title 6", "Title 7", "Title 8", "Title 9", "Title 10", "Title 11", "Title 12", "Title 13", "Title 14", "Title 15"]
       `;
     }
 
-    // Initialize Gemini 3.5 Flash Lite with Lower Temperature for mainstream accuracy
-    const model = genAI.getGenerativeModel({ 
+    // Initialize Gemini 3.5 Flash Lite
+    const model = genAI.getGenerativeModel({
       model: "gemini-3.5-flash-lite",
-      generationConfig: { temperature: 0.4 } 
+      generationConfig: { temperature: 0.5 },
     });
 
     const result = await model.generateContent(prompt);
     let responseText = result.response.text();
 
     // Data Sanitization
-    responseText = responseText.replace(/```json/gi, '').replace(/```/gi, '').trim();
-    
-    let recommendedIds;
+    responseText = responseText.replace(/```json/gi, "").replace(/```/gi, "").trim();
+
+    let recommendedItems;
     try {
-      recommendedIds = JSON.parse(responseText);
+      recommendedItems = JSON.parse(responseText);
     } catch (e) {
       console.error("Gemini Parse Error:", responseText);
       return NextResponse.json({ error: "AI interface malfunction. Invalid data received." }, { status: 500 });
     }
 
-    // Fetch rich OMDb data for exactly 7 recommendations
+    // 🖥️ LOG TO SERVER CONSOLE
+    console.log("-----------------------------------------");
+    console.log(`🎬 [${targetBasis.toUpperCase()} - ${targetType.toUpperCase()}] Gemini Returned:`, recommendedItems);
+    console.log("-----------------------------------------");
+
+    // Universal OMDb Resolver (Handles both IMDb IDs and Title strings seamlessly)
     const finalRecommendations = await Promise.all(
-      recommendedIds.slice(0, 7).map(async (id) => {
-        const res = await fetch(`https://www.omdbapi.com/?apikey=${omdbKey}&i=${id}`);
-        return await res.json();
+      recommendedItems.map(async (item) => {
+        const isImdbId = typeof item === "string" && /^tt\d+$/i.test(item.trim());
+
+        if (isImdbId) {
+          const res = await fetch(`https://www.omdbapi.com/?apikey=${omdbKey}&i=${item.trim()}`);
+          return await res.json();
+        } else {
+          // Title lookup
+          let res = await fetch(
+            `https://www.omdbapi.com/?apikey=${omdbKey}&t=${encodeURIComponent(item)}&type=${targetType}`
+          );
+          let data = await res.json();
+
+          // Fallback without strict type if necessary
+          if (data.Response !== "True") {
+            res = await fetch(`https://www.omdbapi.com/?apikey=${omdbKey}&t=${encodeURIComponent(item)}`);
+            data = await res.json();
+          }
+          return data;
+        }
       })
     );
 
-    const validMovies = finalRecommendations.filter(m => m.Response === "True");
+    // 👇 BULLETPROOF FILTER: Destroys bad formats (e.g. movies in a series request) and slices exactly 10
+    const validMovies = finalRecommendations
+      .filter((m) => m.Response === "True" && m.Type && m.Type.toLowerCase() === targetType.toLowerCase())
+      .slice(0, 10);
+
+    // 🖥️ LOG OMDB RESOLVED MATCHES
+    console.log("✅ OMDb Resolved Matches:");
+    console.log(validMovies.map((m) => `${m.Title} (${m.Year}) [imdbID: ${m.imdbID}] [Type: ${m.Type}]`));
+    console.log("-----------------------------------------");
+
     return NextResponse.json({ results: validMovies }, { status: 200 });
 
   } catch (error) {
     console.error("AI Pipeline Error:", error);
-    
-    // Graceful handling of Quota/Rate Limits
-    if (error.status === 429 || (error.message && error.message.includes("429")) || (error.message && error.message.includes("quota"))) {
-      return NextResponse.json({ 
-        error: "AI Uplink cooling down. Max bandwidth reached. Please wait a few seconds before requesting new intel." 
-      }, { status: 429 });
+
+    if (
+      error.status === 429 ||
+      (error.message && error.message.includes("429")) ||
+      (error.message && error.message.includes("quota"))
+    ) {
+      return NextResponse.json(
+        { error: "AI Uplink cooling down. Max bandwidth reached. Please wait a few seconds before requesting new intel." },
+        { status: 429 }
+      );
     }
 
     return NextResponse.json({ error: "Failed to establish AI uplink." }, { status: 500 });
