@@ -75,9 +75,8 @@ export async function POST(req) {
       `;
     }
 
-    // Initialize Gemini 3.5 Flash Lite
     const model = genAI.getGenerativeModel({
-      model: "gemini-3.5-flash-lite",
+      model: process.env.GEMINI_MODEL || "gemini-3.5-flash-lite",
       generationConfig: { temperature: 0.5 },
     });
 
